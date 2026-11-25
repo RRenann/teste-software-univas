@@ -38,7 +38,7 @@ Este projeto foi estruturado para que os alunos pratiquem:
 │   │   ├── services/          # Serviços de API
 │   │   └── App.tsx           # Componente principal
 │   ├── tests/
-│   │   └── e2e/              # Testes E2E com Selenium
+│   │   └── e2e/              # Testes E2E com Playwright
 │   └── package.json
 └── README.md
 ```
@@ -102,30 +102,57 @@ docs/
 backend/
 ├── tests/
 │   ├── unit/           # Testes unitários (Vitest)
-│   └── integration/    # Testes de integração (Vitest + Supertest)
+│   └── integration/    # Testes de integração (Vitest + Supertest + PostgreSQL)
 ├── vitest.config.ts
 └── stryker.config.json # Teste de mutação
 frontend/
 ├── tests/
 │   ├── setup.ts        # Matchers do jest-dom
-│   └── unit/           # Testes de componentes (Vitest + Testing Library)
+│   ├── msw/            # Servidor de mocks HTTP (MSW)
+│   ├── unit/           # Testes de componentes (Vitest + Testing Library)
+│   ├── integration/    # Componente + camada HTTP simulada (MSW)
+│   └── e2e/            # Jornadas completas no navegador (Playwright)
+│       └── support/    # Fixture de dados e verificação do ambiente
+├── playwright.config.ts
 └── vitest.config.ts
 AGENTS.md               # Regras para agentes de IA (Claude Code, Codex, Copilot)
 ```
 
-### Executando os testes unitários
+### Executando os testes
 
 Os testes unitários não dependem do Docker nem do banco de dados e podem ser executados
 diretamente na máquina (Node.js 26+):
 
 ```bash
 cd backend && npm install
-npm test                 # executa os testes
+npm test                 # testes unitários
 npm run test:coverage    # cobertura de código
 npm run test:mutation    # teste de mutação (Stryker)
 
 cd ../frontend && npm install
-npm test
+npm test                 # testes unitários e de integração (MSW)
+```
+
+Os testes de integração do backend usam o PostgreSQL do Docker, em um banco separado
+(`teste_software_test_db`) recriado a cada execução:
+
+```bash
+docker compose up -d postgres
+cd backend
+npx prisma generate      # apenas na primeira vez
+npm run test:integration
+```
+
+Os testes E2E executam a aplicação completa no navegador. A aplicação roda no Docker e o
+Playwright, na máquina local:
+
+```bash
+docker compose up -d
+docker compose exec backend npm run db:seed   # dados iniciais (opcional)
+cd frontend
+npx playwright install chromium               # apenas na primeira vez
+npm run test:e2e
+npm run test:e2e:report                       # relatório HTML da última execução
 ```
 
 ### Escrevendo testes com IA generativa
@@ -257,7 +284,8 @@ define as regras que o agente deve seguir. Em especial: o agente **não altera o
 - **React Router**: Roteamento
 - **Axios**: Cliente HTTP
 - **Vitest + Testing Library + jsdom**: Testes de componentes
-- **Selenium WebDriver**: Testes E2E
+- **MSW**: Simulação da API nos testes de integração
+- **Playwright**: Testes E2E
 
 ### DevOps
 - **Docker**: Containerização
